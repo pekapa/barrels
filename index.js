@@ -109,10 +109,12 @@ Barrels.prototype.associate = function(collections, done) {
  * @param {array} collections optional list of collections to populate
  * @param {function} done callback
  * @param {boolean} autoAssociations automatically associate based on the order in the fixture files
+ * @param {dictionary} forceAssociation helps to identify which associations should be made if they are not required
  */
-Barrels.prototype.populate = function(collections, done, autoAssociations) {
+Barrels.prototype.populate = function(collections, done, autoAssociations, forceAssociation) {
   var preserveLoadOrder = true;
   if (!_.isArray(collections)) {
+    forceAssociation = autoAssociations
     autoAssociations = done;
     done = collections;
     collections = this.modelNames;
@@ -123,7 +125,9 @@ Barrels.prototype.populate = function(collections, done, autoAssociations) {
       collection = collection.toLowerCase();
     });
   }
+
   autoAssociations = !(autoAssociations === false);
+  this.forceAssociation = forceAssociation || {}
   var that = this;
 
   // Populate each table / collection
@@ -137,10 +141,17 @@ Barrels.prototype.populate = function(collections, done, autoAssociations) {
 
         // Save model's association information
         that.associations[modelName] = {};
+        var modelForce = that.forceAssociation[modelName] || ""
+        if (!_.isArray(modelForce)) {
+          modelForce = [modelForce]
+        }
         for (var i = 0; i < Model.associations.length; i++) {
           var alias = Model.associations[i].alias;
+          var force = (modelForce.indexOf(alias) !== -1)
           that.associations[modelName][alias] = Model.associations[i];
-          that.associations[modelName][alias].required = !!(Model._validator.validations[alias].required);
+          that.associations[modelName][alias].required = !!(
+            Model._validator.validations[alias].required || force
+          );
         }
 
         // Insert all the fixture items
